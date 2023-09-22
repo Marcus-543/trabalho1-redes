@@ -5,12 +5,14 @@ class Cliente(object):
     def __init__(self):
        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
        self.server_address = ('localhost', 8888)
+       self.client_socket.connect(self.server_address)
        
        self.comands = [
         'CONSULTA: solicita informaçoes do servidor', 
         'HORA: informa a hora atual do servidor',
         'ARQUIVO nome_do_arquivo: baixa arquivo especificado',
         'LISTAR: lista todos os arquivos disponiveis',
+        'SAIR: encerra a conexão com o servidor'
         ]
        self.dir = 'dir_files_cli'
        self.nomeArq = ''
@@ -23,7 +25,6 @@ class Cliente(object):
 
     def req(self):
         message_enviada = input("Digite um comando: ")
-        self.client_socket.connect(self.server_address)
         if len(message_enviada.split(maxsplit=1)) == 2:
             self.nomeArq = message_enviada.split(maxsplit=1)[1]
         else:
@@ -33,13 +34,21 @@ class Cliente(object):
     def res(self):
         message_recebida = self.client_socket.recv(1024)
 
-        if self.nomeArq:
-            with open(os.path.join(self.dir, self.nomeArq), 'w') as arq: #wb
+        if (message_recebida.decode() != 'FileNotFound' and message_recebida.decode() != 'ComandNotFound') and self.nomeArq:
+            with open(os.path.join(self.dir, self.nomeArq), 'wb') as arq: #wb
                 arq.write(message_recebida)
             print('arquivo baixado')
 
         else:
-            print(message_recebida.decode())
+            if message_recebida.decode() == 'FileNotFound':
+                print('Arquivo informado nao existe')
+            elif message_recebida.decode() == 'ComandNotFound':
+                print('Comando informado nao existe')
+            elif message_recebida.decode() == 'Adeus':
+                print(message_recebida.decode())
+                return False
+            else:
+                print(message_recebida.decode())
 
         print('--------------------------------------------------------------------')
 
@@ -47,7 +56,8 @@ class Cliente(object):
         while True:
             self.menu()
             self.req()
-            self.res()
+            if self.res() == False:
+                break
 
 cliente = Cliente()
 cliente.run()

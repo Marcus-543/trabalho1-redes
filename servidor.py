@@ -7,11 +7,11 @@ class Server():
    def __init__(self):
       self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-      server_address = ('', 8888)
+      server_address = ('localhost', 8888)
       self.server_socket.bind(server_address)
 
       self.comands = {'CONSULTA': self.info, 'HORA': self.hora_atual,
-       'ARQUIVO': self.baixaArq, 'LISTAR': self.lista_arquivos, }
+       'ARQUIVO': self.baixaArq, 'LISTAR': self.lista_arquivos, 'SAIR': self.encerrar}
 
       self.dir = 'dir_files_serv'
 
@@ -21,17 +21,22 @@ class Server():
       return 'consulta'
 
    def hora_atual(self):
-      horario = dt.datetime.now()
-      horario = horario.strftime("%H:%M:%S")
-      return str(horario)
+      try:
+         horario = dt.datetime.now()
+         horario = horario.strftime("%H:%M:%S")
+         return str(horario)
+      except Exception as e:
+         return 'erro ao consultar horario: '+str(e)
 
    def baixaArq(self, nomeArq):
       try:
-         with open(os.path.join(self.dir, nomeArq), 'r') as file: #rb
-            arq = file.read()
-         return arq
-      except FileNotFoundError:
-         return 'o arquivo nao existe ou seu nome nao foi informado'
+         arquivo_path = os.path.join(self.dir, nomeArq)
+         if os.path.isfile(arquivo_path):
+            with open(arquivo_path, 'rb') as file:
+               arq = file.read()
+            return arq
+         else:
+            return 'FileNotFound'
       except Exception as e:
          return str(e)
 
@@ -45,17 +50,21 @@ class Server():
       except Exception as e:
          return 'erro ao listar arquivos: '+str(e)
 
+   def encerrar(self, client_socket):
+      try:
+         return 'Adeus'
+         client_socket.close()
+      except Exception as e:
+         return 'erro ao encerrar conexao: '+str(e)
 
    def escuta(self, client_socket, client_adress):
       print(f'conectado a {client_adress}')
-      message = client_socket.recv(1024)
-      message_resposta = self.processa(message)
-      #message_resposta = message_resposta.encode() #erro no encode
-      
-      client_socket.send(message_resposta)
-      client_socket.close()
+      while True:
+         message = client_socket.recv(1024)
+         message_resposta = self.processa(message.decode(), client_socket)
+         self.responde(message_resposta, client_socket)
 
-   def processa(self, message):
+   def processa(self, message, client_socket):
       command = message.split(maxsplit=1)[0]
 
       if len(message.split(maxsplit=1)) == 2: 
@@ -64,13 +73,16 @@ class Server():
          nomeArq = None
 
       if command not in self.comands:
-         return 'o comando nao existe'.encode()
+         return 'ComandNotFound'.encode()
       else:
 
          if nomeArq:
             message_resposta = self.comands[command](nomeArq)
          else:
-            message_resposta = self.comands[command]()
+            if command == 'SAIR':
+               message_resposta = self.comands[command](client_socket)
+            else:
+               message_resposta = self.comands[command]()
 
          if isinstance(message_resposta, list):
             return '\n'.join(message_resposta).encode()
@@ -81,8 +93,8 @@ class Server():
          else:
             return message_resposta.encode()
 
-   def responde(self, message_resposta):
-      self.server_socket.send(message_resposta)
+   def responde(self, message_resposta, client_socket):
+      client_socket.send(message_resposta)
 
    def run(self):
       self.server_socket.listen()
@@ -91,7 +103,6 @@ class Server():
          client_thread = threading.Thread(target=self.escuta, args=(client_socket, client_address))
          client_thread.start()
          
-
 servidor = Server()
 while True:
    servidor.run()
