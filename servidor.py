@@ -2,6 +2,8 @@ import socket
 import datetime as dt
 import os
 import threading
+import platform
+import psutil
 
 class Server():
    def __init__(self):
@@ -15,10 +17,18 @@ class Server():
 
       self.dir = 'dir_files_serv'
 
-      print('Servidor TCP pronto para receber mensagens')
+      print('Servidor TCP pronto para receber mensagens.')
 
    def info(self):
-      return 'consulta'
+      info_sistema = {
+         'Sistema operacional do servidor': platform.system(),
+         'Versão do Sistema': platform.version(),
+         'Arquitetura do Sistema': platform.architecture(),
+         'CPU': platform.processor(),
+         'Memória Total (GB)': round(psutil.virtual_memory().total / (1024 ** 3), 2),
+      }
+      info_f = "\n".join([f"{chave}: {valor}" for chave, valor in info_sistema.items()])
+      return info_f.encode()
 
    def hora_atual(self):
       try:
@@ -65,7 +75,7 @@ class Server():
          self.responde(message_resposta, client_socket)
 
    def processa(self, message, client_socket):
-      command = message.split(maxsplit=1)[0]
+      command = message.split(maxsplit=1)[0].upper()
 
       if len(message.split(maxsplit=1)) == 2: 
          nomeArq = message.split(maxsplit=1)[1]

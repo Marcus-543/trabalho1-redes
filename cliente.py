@@ -25,6 +25,7 @@ class Cliente(object):
 
     def req(self):
         message_enviada = input("Digite um comando: ")
+        print('===================================================================')
         if len(message_enviada.split(maxsplit=1)) == 2:
             self.nomeArq = message_enviada.split(maxsplit=1)[1]
         else:
@@ -50,7 +51,7 @@ class Cliente(object):
             else:
                 print(message_recebida.decode())
 
-        print('--------------------------------------------------------------------')
+        print('===================================================================')
 
     def run(self):
         while True:
